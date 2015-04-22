@@ -36,7 +36,6 @@ using namespace std;
 string home;  // the user's home directory
 string pwd;  // our encryption password
 int encrypted = 0;
-Display *disp = 0;
 
 // shortcut trigger
 struct Trigger
@@ -96,6 +95,10 @@ int main( int argc, char **argv )
     // process arguments
     if( argc == 1 )
     {
+        if( read_data() )
+        {
+            return -1;
+        }
         return start_daemon();
     }
     if( argc != 2 ) usage();
@@ -275,11 +278,11 @@ int get_daemon_pid()
 void cleanup()
 {
     unlink( PIDFILE );
-    if( disp )
-    {
-        XCloseDisplay( disp );
-        disp = 0;
-    }
+//     if( disp )
+//     {
+//         XCloseDisplay( disp );
+//         disp = 0;
+//     }
     exit( 0 );
 }
 
@@ -300,6 +303,7 @@ int start_daemon()
     int revert;
     unsigned int i;
     pid_t child;
+    Display *disp;
     Window win_root, win_focus;
     XEvent event_in;
     XKeyEvent event_out;
@@ -309,6 +313,7 @@ int start_daemon()
     Shortcuts converted;
     Shortcuts::iterator iter;
     struct sigaction sigact;
+    string upper_keys = "~!@#$%^&*()_+{}|:\">?";
 
     child = fork();
     if( child < 0 )
@@ -319,11 +324,6 @@ int start_daemon()
     if( child  )
     {
         return 0;
-    }
-    // load data for just checking errors
-    if( read_data() )
-    {
-        return -1;
     }
     // set handler for SIGHUP which triggers data reload
     memset( &sigact, 0, sizeof( sigact ) );
@@ -338,7 +338,6 @@ int start_daemon()
     {
         cout << "ERROR: a daemon is already running.\n";
         cout << "Please check, and if it is dead, than remove " << PIDFILE << ".\n";
-        perror( "x" );
         return -1;
     }
     pid_file.open( PIDFILE, ios::out );
@@ -404,7 +403,16 @@ int start_daemon()
             {
                 event_out.type = KeyPress;
                 event_out.time = CurrentTime;
-                event_out.keycode = XKeysymToKeycode( disp, ( KeySym )pwd[i] );
+                // i have no idea why it has to work like this...
+                if( isupper( pwd[i] ) or upper_keys.find( pwd[i] ) != string::npos )
+                {
+                    event_out.state = ShiftMask;
+                }
+                else
+                {
+                    event_out.state = 0;
+                }
+                event_out.keycode = XKeysymToKeycode( disp, pwd[i] );
                 XSendEvent( disp, win_focus, True, KeyPressMask, ( XEvent * )&event_out );
                 event_out.type = KeyRelease;
                 event_out.time = CurrentTime;
@@ -664,7 +672,7 @@ int write_data()
                 chsum += carry;
         }
         // place it into the data
-        buffer.str("");
+        buffer.str( "" );
         buffer << chsum << endl;
         data = buffer.str() + data;
         // now encrypt it

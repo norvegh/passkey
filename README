@@ -33,11 +33,11 @@ if running.
 A password data entry has three parts:
  * trigger key
  * description
- * the password itself.
+ * the password itself
 
-The description and password fields are arbitrary text. The trigger is a single key
-with potential modifiers. Multiple modifiers can be used together.
-The modifiers are the following:
+The description and password fields are arbitrary text. The password can contain only
+standard ASCII characters. The trigger is a single key with potential modifiers.
+Multiple modifiers can be used together. The modifiers are the following:
  * CTRL
  * SHIFT
  * ALT
