@@ -13,7 +13,4 @@ passkey:  passkey.o
 	$(CC) -o passkey passkey.o $(LDFLAGS)
 
 clean:
-	-rm -f *.o *.a *~ core
-
-clobber:
-	-rm -f $(TARGETS)
+	-rm -f passkey *.o *.a *~ core

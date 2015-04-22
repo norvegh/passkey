@@ -18,7 +18,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <termios.h>
-#include <pthread.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -320,7 +319,7 @@ int start_daemon()
     {
         return 0;
     }
-    // set handler for SIGHUP which triggers data reload
+    // set handler for SIGTERM so that we can clean up
     memset( &sigact, 0, sizeof( sigact ) );
     sigact.sa_handler = sig_handler;
     if( sigaction( SIGTERM, &sigact, 0 ) )
@@ -623,6 +622,14 @@ int print_data()
         cout << "No entries.\n";
         return 0;
     }
+    if( encrypted )
+    {
+        cout << "ENCRYPTED\n";
+    }
+    else
+    {
+        cout << "NOT ENCRYPTED\n";
+    }
     for( i = 1, iter = shortcuts.begin(); iter != shortcuts.end(); i++, iter++ )
     {
         cout << i << ". ";
@@ -689,7 +696,7 @@ int write_data()
 int encrypt_data( string pwd, string &data )
 {
     int i, len, fill;
-    const unsigned char *datap;
+    unsigned char *datap;
     unsigned char buffer[16];
     timeval now;
     AES_KEY key;
@@ -719,7 +726,7 @@ int encrypt_data( string pwd, string &data )
     {
         data += rand()%256;
     }
-    datap = ( const unsigned char * )data.data();
+    datap = ( unsigned char * )&data[0];
     AES_set_encrypt_key( upwd, 128, &key );
     for( i = 0; i < len; i += 16 )
     {
@@ -734,7 +741,7 @@ int encrypt_data( string pwd, string &data )
 int decrypt_data( string pwd, string &data )
 {
     int i, len;
-    const unsigned char *datap;
+    unsigned char *datap;
     unsigned char buffer[16];
     AES_KEY key;
     unsigned char upwd[16];
@@ -747,7 +754,7 @@ int decrypt_data( string pwd, string &data )
     }
     memcpy( upwd, pwd.c_str(), len );
     len = data.size();
-    datap = ( const unsigned char * )data.data();
+    datap = ( unsigned char * )&data[0];
     AES_set_decrypt_key( upwd, 128, &key );
     for( i = 0; i + 16 <= len; i += 16 )
     {
