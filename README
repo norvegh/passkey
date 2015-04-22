@@ -1,0 +1,82 @@
+PASSKEY
+=======
+
+Passkey is a password manager and password automation tool for Linux.
+
+You can configure hotkeys for your passwords. Whenever you activate the hotkeys
+the password will be sent to the active X window.
+The password data file can be encrypted with the AES-128 cypher and protected
+by a password.
+
+MANUAL
+======
+
+Passkey is started on the CLI and runs as a daemon in the background.
+There is no GUI, you can use the tool with specific command line options
+to edit the password entries. If your data file in not encrypted
+you can also edit it manually.
+
+Without any arguments passkey will run as a daemon in the background and listen
+for hotkey events. You can also use the following arguments:
+ * -l   : list the currently configured triggers and their description
+ * -a   : add a new entry (interactive mode)
+ * -d   : delete an entry (interactive mode)
+ * -s   : stop the daemon
+ * --encrypt   : set or reset the master password and encrypt the data file
+ * --decrypt   : decrypt the data file
+
+For adding or deleting entries you dont have to specify any further options,
+you will be prompted to enter the necessary information.
+When you modify the password data via the tool the daemon is automatically reloaded
+if running.
+
+A password data entry has three parts:
+ * trigger key
+ * description
+ * the password itself.
+
+The description and password fields are arbitrary text. The trigger is a single key
+with potential modifiers. Multiple modifiers can be used together.
+The modifiers are the following:
+ * CTRL
+ * SHIFT
+ * ALT
+ * WIN
+
+Some trigger examples:
+ * WIN+Y
+ * CTRL+ALT+R
+
+The data is stored in ~/.passkey. In the unencrypted form it looks like this:
+
+trigger1
+description1
+password1
+
+trigger2
+description2
+password2
+
+...
+
+INSTALLATION
+============
+
+The latest version of passkey can be downloaded from here:
+
+http://github.com/norvegh/passkey
+
+To compile the source you need to following tools and libs:
+ * make
+ * g++
+ * standard C++ libraries (libstdc++)
+ * X11 development libraries (libx11-dev)
+ * OpenSSL development libraries (libssl-dev)
+
+Just run "make" to build to program.
+
+COPYRIGHT
+=========
+
+passkey is (C) 2015, Norbert Vegh, vegh-&-norvegh.com.
+You can use it under the terms of the GNU Generic Public License Version 2.
