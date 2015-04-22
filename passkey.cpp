@@ -278,11 +278,6 @@ int get_daemon_pid()
 void cleanup()
 {
     unlink( PIDFILE );
-//     if( disp )
-//     {
-//         XCloseDisplay( disp );
-//         disp = 0;
-//     }
     exit( 0 );
 }
 
@@ -363,6 +358,9 @@ int start_daemon()
     {
         trigger = iter->first;
         XGrabKey( disp, trigger.key, trigger.mods, win_root, True, GrabModeAsync, GrabModeAsync );
+        // also add it with numlock
+        trigger.mods |= Mod2Mask;
+        XGrabKey( disp, trigger.key, trigger.mods, win_root, True, GrabModeAsync, GrabModeAsync );
     }
     XSelectInput( disp, win_root, KeyReleaseMask );
     fclose( stdin );
@@ -375,6 +373,8 @@ int start_daemon()
         {
             trigger.key = event_in.xkey.keycode;
             trigger.mods = event_in.xkey.state;
+            // remove numlock mask
+            trigger.mods &= ( 0xFFFFFFFF ^ Mod2Mask );
             iter = converted.find( trigger );
             if( iter == converted.end() )
             {
