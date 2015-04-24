@@ -33,7 +33,7 @@ using namespace std;
 
 // global data
 string home;  // the user's home directory
-string pwd;  // our encryption password
+string enc_pwd;  // our encryption password
 int encrypted = 0;
 
 // shortcut trigger
@@ -48,6 +48,7 @@ struct Action
 {
     string desc;  // description
     string pwd;  // password
+    string mods;  // modifications for keys in password
 };
 
 inline bool operator<( const Trigger &left, const Trigger &right )
@@ -201,7 +202,17 @@ int main( int argc, char **argv )
             return -1;
         }
         kill( pid, SIGTERM );
-        return 0;
+        for( i = 0; i < 100; i++ )
+        {
+            usleep( 10000 );
+            if( access( PIDFILE, F_OK ) )
+            {
+                return 0;
+            }
+        }
+        cerr << "ERROR: daemon could not be stopped with SIGTERM\n";
+        cerr << "Try to kill it manually with kill -9.\n";
+        return -1;
     }
     // encrypt the data file
     if( !strcmp( argv[1], "--encrypt" ) )
@@ -211,12 +222,12 @@ int main( int argc, char **argv )
             return -1;
         }
         cout << "Enter new password: ";
-        pwd = read_pwd();
+        enc_pwd = read_pwd();
         cout << endl;
         cout << "Retype new password: ";
         line = read_pwd();
         cout << endl;
-        if( pwd != line )
+        if( enc_pwd != line )
         {
             cout << "Passwords do not match.\n";
             return 0;
@@ -301,7 +312,8 @@ int start_daemon()
     Window win_root, win_focus;
     XEvent event_in;
     XKeyEvent event_out;
-    string str_pid, pwd;
+    Action action;
+    string pwd, mods;
     ofstream pid_file;
     Trigger trigger;
     Shortcuts converted;
@@ -345,12 +357,27 @@ int start_daemon()
     atexit( cleanup );
     disp = XOpenDisplay( 0 );
     win_root = DefaultRootWindow( disp );
-    // need to convert the keys to keycodes
+    // need to convert the keys to keycodes and also get the mods for passwords
     for( iter = shortcuts.begin(); iter != shortcuts.end(); iter++ )
     {
         trigger = iter->first;
         trigger.key = XKeysymToKeycode( disp, ( KeySym )trigger.key );
-        converted[trigger] = iter->second;
+        pwd = iter->second.pwd;
+        mods = "";
+        for( i = 0; i < pwd.size(); i++ )
+        {
+            if( isupper( pwd[i] ) or upper_keys.find( pwd[i] ) != string::npos )
+            {
+                mods += ShiftMask;
+            }
+            else
+            {
+                mods += '\0';
+            }
+        action.pwd = pwd;
+        action.mods = mods;
+        converted[trigger] = action;
+        }
     }
     // grab the keys
     for( iter = converted.begin(); iter != converted.end(); iter++ )
@@ -367,7 +394,7 @@ int start_daemon()
     fclose( stderr );
     while( true )
     {
-        XNextEvent( disp, &event_in );  // this blocks signals
+        XNextEvent( disp, &event_in );  // this will not return on signal
         if( event_in.type == 3 )
         {
             trigger.key = event_in.xkey.keycode;
@@ -381,6 +408,7 @@ int start_daemon()
                 continue;
             }
             pwd = iter->second.pwd;
+            mods = iter->second.mods;
             // clear event queue
             while( XPending( disp ) )
             {
@@ -397,20 +425,11 @@ int start_daemon()
             event_out.x_root = 1;
             event_out.y_root = 1;
             event_out.same_screen = True;
-            event_out.state = 0;
             for( i = 0; i < pwd.size(); i++ )
             {
                 event_out.type = KeyPress;
                 event_out.time = CurrentTime;
-                // i have no idea why it has to work like this...
-                if( isupper( pwd[i] ) or upper_keys.find( pwd[i] ) != string::npos )
-                {
-                    event_out.state = ShiftMask;
-                }
-                else
-                {
-                    event_out.state = 0;
-                }
+                event_out.state = mods[i];
                 event_out.keycode = XKeysymToKeycode( disp, pwd[i] );
                 XSendEvent( disp, win_focus, True, KeyPressMask, ( XEvent * )&event_out );
                 event_out.type = KeyRelease;
@@ -502,9 +521,9 @@ int read_data()
         encrypted = -1;
         data = data.substr( 10 );
         cout << "Enter password: ";
-        pwd = read_pwd();
+        enc_pwd = read_pwd();
         cout << endl;
-        decrypt_data( pwd, data );
+        decrypt_data( enc_pwd, data );
         // verify checksum
         sep = data.find( '\n' );
         if( sep == string::npos or sep < 1 )
@@ -683,7 +702,7 @@ int write_data()
         buffer << chsum << endl;
         data = buffer.str() + data;
         // now encrypt it
-        encrypt_data( pwd, data );
+        encrypt_data( enc_pwd, data );
         data = "ENCRYPTED\n" + data;
     }
     datafile << data;
